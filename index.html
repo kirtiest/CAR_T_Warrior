@@ -1,568 +1,811 @@
-
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Exo+2:wght@400;600&display=swap');
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body-wrapper {
-    display: block;
-  }
-
-  #game-root {
-    font-family: 'Exo 2', sans-serif;
-    background: #04050f;
-    min-height: 560px;
-    position: relative;
-    overflow: hidden;
-    border-radius: 12px;
-    border: 1px solid #1a1f3a;
-    user-select: none;
-  }
-
-  /* Starfield */
-  #game-root::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(1px 1px at 10% 20%, #fff6 0%, transparent 100%),
-      radial-gradient(1px 1px at 30% 60%, #fff4 0%, transparent 100%),
-      radial-gradient(1px 1px at 70% 15%, #fff5 0%, transparent 100%),
-      radial-gradient(1px 1px at 85% 75%, #fff3 0%, transparent 100%),
-      radial-gradient(1px 1px at 55% 40%, #fff4 0%, transparent 100%),
-      radial-gradient(1px 1px at 20% 80%, #fff3 0%, transparent 100%),
-      radial-gradient(1px 1px at 90% 35%, #fff5 0%, transparent 100%),
-      radial-gradient(1px 1px at 45% 90%, #fff3 0%, transparent 100%);
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  #hud {
-    position: relative;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 18px;
-    background: rgba(0,0,0,0.55);
-    border-bottom: 1px solid #1e2547;
-  }
-
-  #hud .logo {
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    font-weight: 900;
-    color: #e040fb;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  #hud .stats {
-    display: flex;
-    gap: 18px;
-    align-items: center;
-  }
-
-  .stat-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .stat-pill .label { color: #888; }
-  .stat-pill .val { color: #fff; font-size: 14px; }
-  .stat-pill.score .val { color: #ffd740; }
-  .stat-pill.lives .val { color: #ff5252; }
-  .stat-pill.level .val { color: #69f0ae; }
-
-  #canvas-area {
-    position: relative;
-    width: 100%;
-    height: 430px;
-    overflow: hidden;
-  }
-
-  canvas#gameCanvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    cursor: crosshair;
-    z-index: 1;
-  }
-
-  #overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(4,5,15,0.92);
-    backdrop-filter: blur(4px);
-  }
-
-  #overlay h1 {
-    font-family: 'Orbitron', monospace;
-    font-size: 26px;
-    font-weight: 900;
-    color: #e040fb;
-    letter-spacing: 3px;
-    margin-bottom: 8px;
-    text-align: center;
-  }
-
-  #overlay .subtitle {
-    color: #aaa;
-    font-size: 13px;
-    margin-bottom: 24px;
-    text-align: center;
-    max-width: 380px;
-    line-height: 1.6;
-  }
-
-  .legend {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #ccc;
-  }
-
-  .legend-dot {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .dot-tumor { background: radial-gradient(circle at 35% 35%, #ff6b6b, #c0392b); border: 2px solid #ff4444; }
-  .dot-healthy { background: radial-gradient(circle at 35% 35%, #69f0ae, #00bfa5); border: 2px solid #00e676; }
-
-  #start-btn {
-    background: linear-gradient(135deg, #e040fb, #aa00ff);
-    color: #fff;
-    border: none;
-    border-radius: 30px;
-    padding: 12px 36px;
-    font-family: 'Orbitron', monospace;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    box-shadow: 0 0 20px #e040fb55;
-  }
-
-  #start-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 30px #e040fb99;
-  }
-
-  .final-score {
-    font-family: 'Orbitron', monospace;
-    font-size: 36px;
-    font-weight: 900;
-    color: #ffd740;
-    margin: 8px 0 16px;
-  }
-
-  .result-msg {
-    font-size: 15px;
-    color: #69f0ae;
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  #info-bar {
-    position: relative;
-    z-index: 10;
-    padding: 6px 18px;
-    background: rgba(0,0,0,0.6);
-    border-top: 1px solid #1e2547;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: #666;
-    min-height: 28px;
-  }
-
-  #info-bar .msg { color: #aaa; transition: color 0.3s; }
-
-  .combo-flash {
-    position: absolute;
-    pointer-events: none;
-    font-family: 'Orbitron', monospace;
-    font-weight: 900;
-    font-size: 18px;
-    color: #ffd740;
-    text-shadow: 0 0 10px #ffd74088;
-    animation: comboPop 0.8s ease-out forwards;
-    z-index: 30;
-  }
-
-  @keyframes comboPop {
-    0% { opacity: 1; transform: scale(1.3) translateY(0); }
-    100% { opacity: 0; transform: scale(0.8) translateY(-40px); }
-  }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAR-T Warrior — Destroy Cancer, Save Lives</title>
+  <meta name="description" content="An educational game about CAR-T cell therapy. Destroy tumor cells, spare healthy ones, and learn about immunotherapy!">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; background: #020308; overflow: hidden; font-family: 'Exo 2', sans-serif; }
+    #game-root {
+      width: 100vw; height: 100vh; position: relative; overflow: hidden;
+      background: linear-gradient(180deg, #04050f 0%, #0a0d1f 50%, #060818 100%);
+      user-select: none; -webkit-user-select: none;
+    }
+    #game-root::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 30% 60%, rgba(255,255,255,0.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.35) 0%, transparent 100%),
+        radial-gradient(1px 1px at 85% 75%, rgba(255,255,255,0.2) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 55% 40%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 20% 80%, rgba(255,255,255,0.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 35%, rgba(255,255,255,0.35) 0%, transparent 100%),
+        radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.2) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5% 50%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 60% 85%, rgba(255,255,255,0.25) 0%, transparent 100%),
+        radial-gradient(1px 1px at 75% 45%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.35) 0%, transparent 100%);
+      animation: starDrift 60s linear infinite;
+    }
+    @keyframes starDrift { 0% { transform: translateY(0); } 100% { transform: translateY(30px); } }
+    #hud {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+      pointer-events: none;
+    }
+    .logo { font-family: 'Orbitron', monospace; font-size: 15px; font-weight: 900; color: #e040fb; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 20px rgba(224,64,251,0.5); }
+    .logo .sub { display: block; font-family: 'Exo 2', sans-serif; font-size: 9px; font-weight: 400; color: rgba(255,255,255,0.35); letter-spacing: 3px; margin-top: 2px; }
+    .stats { display: flex; gap: 12px; align-items: center; }
+    .stat-pill { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 600; backdrop-filter: blur(8px); }
+    .stat-pill .label { color: rgba(255,255,255,0.4); font-size: 10px; letter-spacing: 1px; }
+    .stat-pill .val { color: #fff; font-size: 14px; font-weight: 700; }
+    .stat-pill.score .val { color: #ffd740; }
+    .stat-pill.lives .val { color: #ff5252; font-size: 13px; }
+    .stat-pill.level .val { color: #69f0ae; }
+    canvas#gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; z-index: 1; }
 </style>
-
+</head>
+<body>
 <div id="game-root">
-  <div id="hud">
-    <div class="logo">CAR-T Warrior</div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="hud" style="display:none;">
+    <div class="logo">CAR-T Warrior<span class="sub">Immunotherapy Sim</span></div>
     <div class="stats">
       <div class="stat-pill score"><span class="label">SCORE</span><span class="val" id="score-val">0</span></div>
-      <div class="stat-pill lives"><span class="label">LIVES</span><span class="val" id="lives-val">❤ ❤ ❤</span></div>
+      <div class="stat-pill lives"><span class="label">LIVES</span><span class="val" id="lives-val">❤ ❤ ❤ ❤ ❤</span></div>
       <div class="stat-pill level"><span class="label">LEVEL</span><span class="val" id="level-val">1</span></div>
     </div>
   </div>
-
-  <div id="canvas-area">
-    <canvas id="gameCanvas"></canvas>
-    <div id="overlay">
-      <h1>CAR-T WARRIOR</h1>
-      <div class="subtitle">You are a CAR-T cell — engineered to hunt tumors! Click tumor cells to destroy them. Let healthy cells pass safely.</div>
-      <div class="legend">
-        <div class="legend-item"><div class="legend-dot dot-tumor"></div><span>🎯 Tumor cell — <b style="color:#ff6b6b">CLICK to destroy</b></span></div>
-        <div class="legend-item"><div class="legend-dot dot-healthy"></div><span>✅ Healthy cell — <b style="color:#69f0ae">let it pass</b></span></div>
-      </div>
-      <button id="start-btn" onclick="startGame()">▶ START MISSION</button>
-    </div>
-  </div>
-
-  <div id="info-bar">
-    <span style="color:#e040fb">ℹ</span>
-    <span class="msg" id="info-msg">In real CAR-T therapy, engineered T-cells recognize a protein (antigen) on cancer cells and destroy only them — sparing healthy tissue.</span>
+  <div id="level-progress" style="display:none;position:absolute;top:52px;left:20px;right:20px;height:2px;background:rgba(255,255,255,0.05);border-radius:2px;z-index:10;overflow:hidden;pointer-events:none;">
+    <div id="level-progress-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#e040fb,#69f0ae);border-radius:2px;transition:width 0.3s ease;box-shadow:0 0 8px rgba(224,64,251,0.5);"></div>
   </div>
 </div>
 
+  <div id="overlay" style="position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(4,5,15,0.92);backdrop-filter:blur(6px);padding:20px;">
+    <h1 style="font-family:'Orbitron',monospace;font-size:clamp(22px,5vw,36px);font-weight:900;color:#e040fb;letter-spacing:4px;margin-bottom:6px;text-align:center;text-shadow:0 0 40px rgba(224,64,251,0.4);">CAR-T WARRIOR</h1>
+    <div style="font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:4px;text-transform:uppercase;margin-bottom:28px;">Immunotherapy Simulator</div>
+    <div style="color:rgba(255,255,255,0.6);font-size:14px;margin-bottom:20px;text-align:center;max-width:420px;line-height:1.7;">You are a CAR-T cell — engineered to hunt tumors. Click or swipe your hand over tumor cells to destroy them. Let healthy cells pass safely.</div>
+    <div style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap;justify-content:center;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.7);">
+        <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff6b6b,#c0392b);border:2px solid #ff4444;box-shadow:0 0 12px rgba(255,68,68,0.3);flex-shrink:0;"></div>
+        <span>Tumor — <span style="color:#ff6b6b">destroy it</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,0.7);">
+        <div style="width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#69f0ae,#00bfa5);border:2px solid #00e676;box-shadow:0 0 12px rgba(0,230,118,0.3);flex-shrink:0;"></div>
+        <span>Healthy — <span style="color:#69f0ae">let it pass</span></span>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;justify-content:center;">
+      <button id="start-btn" style="background:linear-gradient(135deg,#e040fb,#aa00ff);color:#fff;border:none;border-radius:30px;padding:14px 36px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;box-shadow:0 0 30px rgba(224,64,251,0.3);text-transform:uppercase;">▶ CLICK MODE</button>
+      <button id="hand-btn" style="background:linear-gradient(135deg,#00bcd4,#0097a7);color:#fff;border:none;border-radius:30px;padding:14px 36px;font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;box-shadow:0 0 30px rgba(0,188,212,0.3);text-transform:uppercase;">✋ HAND MODE</button>
+    </div>
+    <div id="high-score-display" style="font-size:12px;color:rgba(255,255,255,0.3);"></div>
+    <div id="cam-status" style="font-size:11px;color:rgba(255,255,255,0.25);margin-top:8px;"></div>
+  </div>
+
+  <!-- Webcam PiP -->
+  <video id="webcam" autoplay playsinline style="display:none;"></video>
+  <canvas id="camCanvas" style="display:none;position:absolute;bottom:12px;right:12px;z-index:15;border-radius:12px;border:2px solid rgba(0,188,212,0.4);box-shadow:0 0 20px rgba(0,188,212,0.2);pointer-events:none;"></canvas>
+
+  <!-- Hand mode indicator -->
+  <div id="hand-indicator" style="display:none;position:absolute;top:58px;right:20px;z-index:15;background:rgba(0,188,212,0.15);border:1px solid rgba(0,188,212,0.3);border-radius:20px;padding:4px 12px;font-size:11px;color:#00bcd4;pointer-events:none;">✋ HAND TRACKING</div>
+
+  <div id="powerup-bar" style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);z-index:10;display:flex;gap:10px;pointer-events:none;"></div>
+  <div id="info-bar" style="display:none;position:absolute;bottom:0;left:0;right:0;z-index:10;padding:10px 20px;background:linear-gradient(0deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0) 100%);align-items:center;gap:8px;font-size:12px;pointer-events:none;">
+    <span style="color:#e040fb;font-size:14px;">🧬</span>
+    <span id="info-msg" style="color:rgba(255,255,255,0.5);line-height:1.5;"></span>
+  </div>
+</div>
+
+<style>
+  .combo-flash { position: absolute; pointer-events: none; font-family: 'Orbitron', monospace; font-weight: 900; font-size: 18px; color: #ffd740; text-shadow: 0 0 15px rgba(255,215,64,0.6); animation: comboPop 0.9s ease-out forwards; z-index: 30; white-space: nowrap; }
+  .combo-flash.penalty { color: #ff5252; text-shadow: 0 0 15px rgba(255,82,82,0.6); }
+  @keyframes comboPop { 0% { opacity: 1; transform: scale(1.4) translateY(0); } 100% { opacity: 0; transform: scale(0.7) translateY(-50px); } }
+  .shake { animation: screenShake 0.4s ease-out; }
+  @keyframes screenShake { 0%, 100% { transform: translate(0); } 10% { transform: translate(-4px, 2px); } 20% { transform: translate(4px, -2px); } 30% { transform: translate(-3px, 3px); } 40% { transform: translate(3px, -1px); } 50% { transform: translate(-2px, 1px); } }
+  .new-high-score { font-family: 'Orbitron', monospace; font-size: 12px; color: #ffd740; letter-spacing: 2px; animation: hsBlink 0.6s ease-in-out infinite alternate; }
+  @keyframes hsBlink { 0% { opacity: 0.6; } 100% { opacity: 1; } }
+  .powerup-indicator { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: #fff; animation: puPulse 1s ease-in-out infinite; }
+  @keyframes puPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .end-stats { display: flex; gap: 24px; margin: 16px 0 24px; flex-wrap: wrap; justify-content: center; }
+  .end-stat { text-align: center; padding: 10px 18px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
+  .end-stat .es-val { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 700; color: #fff; }
+  .end-stat .es-label { font-size: 10px; color: rgba(255,255,255,0.35); letter-spacing: 1px; margin-top: 4px; }
+  .btn-primary { background: linear-gradient(135deg, #e040fb, #aa00ff); color: #fff; border: none; border-radius: 30px; padding: 14px 44px; font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; letter-spacing: 2px; cursor: pointer; box-shadow: 0 0 30px rgba(224,64,251,0.3); text-transform: uppercase; }
+  .btn-primary:hover { transform: scale(1.05); box-shadow: 0 0 50px rgba(224,64,251,0.5); }
+  @media (max-width: 600px) { .stats { gap: 6px; } .stat-pill { padding: 3px 8px; font-size: 10px; } .stat-pill .val { font-size: 12px; } .logo { font-size: 12px; } }
+</style>
+
+<!-- MediaPipe Hands via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js" crossorigin="anonymous"></script>
+
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const overlay = document.getElementById('overlay');
-const scoreVal = document.getElementById('score-val');
-const livesVal = document.getElementById('lives-val');
-const levelVal = document.getElementById('level-val');
-const infoMsg = document.getElementById('info-msg');
+(function() {
+  'use strict';
 
-let W, H, cells = [], particles = [], score = 0, lives = 3, level = 1;
-let gameRunning = false, spawnTimer = 0, levelTimer = 0, combo = 0, frameId;
-
-const FACTS = [
-  "CAR-T cells are genetically modified T-cells that target a specific antigen on cancer cells.",
-  "CAR stands for Chimeric Antigen Receptor — a lab-engineered protein on the T-cell surface.",
-  "CAR-T therapy was first approved by the FDA in 2017 for certain leukemias.",
-  "Healthy cells lack the target antigen (e.g. CD19), so CAR-T cells leave them unharmed.",
-  "T-cells are white blood cells — key soldiers of your adaptive immune system.",
-  "CAR-T therapy is a form of immunotherapy — using your own immune system to fight cancer.",
-  "A single infusion of CAR-T cells can eliminate billions of tumor cells.",
-  "Tumors evolve to hide antigens — scientists design multi-target CARs to counter this.",
-];
-
-function resize() {
-  const area = document.getElementById('canvas-area');
-  W = area.clientWidth;
-  H = area.clientHeight;
-  canvas.width = W;
-  canvas.height = H;
-}
-
-function heartStr(n) {
-  return Array(n).fill('❤').join(' ') + Array(3-n).fill('🖤').join(' ');
-}
-
-class Cell {
-  constructor(isTumor) {
-    this.isTumor = isTumor;
-    this.r = isTumor ? 24 + Math.random()*10 : 20 + Math.random()*8;
-    this.x = this.r + Math.random() * (W - this.r*2);
-    this.y = -this.r - Math.random()*80;
-    this.vy = (1.2 + Math.random()*0.8 + level*0.15);
-    this.vx = (Math.random()-0.5)*0.8;
-    this.rot = Math.random()*Math.PI*2;
-    this.rotv = (Math.random()-0.5)*0.04;
-    this.spikes = isTumor ? 6+Math.floor(Math.random()*4) : 0;
-    this.wobble = 0;
-    this.alive = true;
-    this.opacity = 1;
-    this.glowPhase = Math.random()*Math.PI*2;
-    this.nucleusColor = isTumor ? '#8b0000' : '#004d40';
-    this.surfaceColor = isTumor ? '#c0392b' : '#00897b';
-    this.glowColor = isTumor ? '#ff4444' : '#00e676';
-    this.antigenDots = isTumor ? Math.floor(3+Math.random()*4) : 0;
-    this.antigenAngles = Array.from({length: this.antigenDots}, (_,i)=> (i/this.antigenDots)*Math.PI*2 + Math.random()*0.5);
+  // ─── Audio ───
+  var audioCtx;
+  function initAudio() { try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  var combo = 0;
+  function playSound(type) {
+    if (!audioCtx) return;
+    try {
+      var osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      var t = audioCtx.currentTime;
+      if (type === 'kill') { osc.type='square'; osc.frequency.setValueAtTime(600,t); osc.frequency.exponentialRampToValueAtTime(1200,t+0.08); osc.frequency.exponentialRampToValueAtTime(200,t+0.2); gain.gain.setValueAtTime(0.12,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.25); osc.start(t); osc.stop(t+0.25); }
+      else if (type === 'miss') { osc.type='sawtooth'; osc.frequency.setValueAtTime(300,t); osc.frequency.exponentialRampToValueAtTime(80,t+0.3); gain.gain.setValueAtTime(0.1,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.35); osc.start(t); osc.stop(t+0.35); }
+      else if (type === 'powerup') { osc.type='sine'; osc.frequency.setValueAtTime(400,t); osc.frequency.exponentialRampToValueAtTime(800,t+0.1); osc.frequency.exponentialRampToValueAtTime(1200,t+0.2); gain.gain.setValueAtTime(0.1,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.3); osc.start(t); osc.stop(t+0.3); }
+      else if (type === 'levelup') { osc.type='sine'; osc.frequency.setValueAtTime(523,t); osc.frequency.setValueAtTime(659,t+0.1); osc.frequency.setValueAtTime(784,t+0.2); gain.gain.setValueAtTime(0.1,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.4); osc.start(t); osc.stop(t+0.4); }
+      else if (type === 'combo') { osc.type='triangle'; osc.frequency.setValueAtTime(800+combo*100,t); osc.frequency.exponentialRampToValueAtTime(1600+combo*100,t+0.1); gain.gain.setValueAtTime(0.08,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.15); osc.start(t); osc.stop(t+0.15); }
+    } catch(e) {}
   }
 
-  update() {
-    this.y += this.vy;
-    this.x += this.vx;
-    this.rot += this.rotv;
-    this.wobble += 0.05;
-    this.glowPhase += 0.06;
-    if (this.x < this.r || this.x > W - this.r) this.vx *= -1;
-  }
+  // ─── DOM ───
+  var canvas = document.getElementById('gameCanvas');
+  var ctx = canvas.getContext('2d');
+  var overlay = document.getElementById('overlay');
+  var scoreVal = document.getElementById('score-val');
+  var livesVal = document.getElementById('lives-val');
+  var levelVal = document.getElementById('level-val');
+  var infoMsg = document.getElementById('info-msg');
+  var hudEl = document.getElementById('hud');
+  var infoBar = document.getElementById('info-bar');
+  var levelProgressFill = document.getElementById('level-progress-fill');
+  var levelProgress = document.getElementById('level-progress');
+  var powerupBar = document.getElementById('powerup-bar');
+  var highScoreDisplay = document.getElementById('high-score-display');
+  var gameRoot = document.getElementById('game-root');
+  var camStatus = document.getElementById('cam-status');
+  var handIndicator = document.getElementById('hand-indicator');
+  var webcamEl = document.getElementById('webcam');
+  var camCanvas = document.getElementById('camCanvas');
+  var camCtx = camCanvas.getContext('2d');
 
-  draw() {
-    if (!this.alive) return;
-    const glow = 0.5 + 0.5*Math.sin(this.glowPhase);
-    ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.rot);
-    ctx.globalAlpha = this.opacity;
+  // ─── State ───
+  var W, H, cells, particles, powerups, activePowerups;
+  var score, lives, level, maxCombo, tumorsKilled, totalClicks;
+  var healthyKilled, tumorsEscaped, healthyPassed;
+  var gameRunning = false, spawnTimer, levelTimer, frameId, factInterval;
+  var highScore = parseInt(localStorage.getItem('cart_highscore') || '0');
+  if (highScore > 0) highScoreDisplay.textContent = 'BEST: ' + highScore;
 
-    if (this.isTumor) {
-      // spiky tumor cell
-      ctx.shadowBlur = 12 + glow*8;
-      ctx.shadowColor = this.glowColor;
-      ctx.beginPath();
-      const sr = this.r;
-      const sp = this.spikes;
-      for (let i=0; i<sp*2; i++) {
-        const ang = (i/sp/2)*Math.PI*2;
-        const rad = i%2===0 ? sr : sr*0.58;
-        const wx = i%2!==0 ? Math.sin(this.wobble)*1.5 : 0;
-        ctx.lineTo(Math.cos(ang)*rad + wx, Math.sin(ang)*rad);
+  // ─── Hand tracking state ───
+  var handMode = false;
+  var handActive = false; // is hand currently detected
+  var handX = 0, handY = 0; // current finger position in canvas coords
+  var prevHandX = 0, prevHandY = 0;
+  var handTrail = []; // trail points for blade effect
+  var handVelocity = 0;
+  var handCooldowns = new Set(); // cell IDs we already hit this swipe
+  var mpHands = null, mpCamera = null;
+  var SLICE_VELOCITY_THRESHOLD = 8; // min px/frame movement to count as a slice
+  var CAM_W = 200, CAM_H = 150;
+
+  var FACTS = [
+    "CAR-T cells are genetically modified T-cells that target a specific antigen on cancer cells.",
+    "CAR stands for Chimeric Antigen Receptor — a lab-engineered protein on the T-cell surface.",
+    "CAR-T therapy was first approved by the FDA in 2017 for certain leukemias.",
+    "Healthy cells lack the target antigen (e.g. CD19), so CAR-T cells leave them unharmed.",
+    "T-cells are white blood cells — key soldiers of your adaptive immune system.",
+    "CAR-T therapy is a form of immunotherapy — using your own immune system to fight cancer.",
+    "A single infusion of CAR-T cells can eliminate billions of tumor cells.",
+    "Tumors evolve to hide antigens — scientists design multi-target CARs to counter this.",
+    "Cytokine Release Syndrome (CRS) is a common side effect when CAR-T cells activate massively.",
+    "Scientists are developing 'off-the-shelf' CAR-T cells from healthy donors for faster treatment.",
+    "CAR-T cells can persist in the body for years, providing long-term cancer surveillance.",
+    "The first patient treated with CAR-T therapy for leukemia in 2012 remains cancer-free.",
+  ];
+  var POWERUP_TYPES = {
+    shield: { emoji: '🛡️', label: 'SHIELD', color: '#64b5f6', duration: 300 },
+    slowmo: { emoji: '⏳', label: 'SLOW-MO', color: '#ce93d8', duration: 250 },
+    bonus:  { emoji: '⭐', label: '2X PTS', color: '#ffd740', duration: 350 },
+  };
+
+  function resize() { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H; }
+  function heartStr(n) { var s=''; for (var i=0;i<5;i++) s += i<n ? '❤ ' : '🖤 '; return s.trim(); }
+
+  // ─── Cell ───
+  var cellIdCounter = 0;
+  class Cell {
+    constructor(isTumor) {
+      this.id = cellIdCounter++;
+      this.isTumor = isTumor;
+      this.r = isTumor ? 22+Math.random()*12 : 18+Math.random()*10;
+      this.x = this.r+Math.random()*(W-this.r*2);
+      this.y = -this.r-Math.random()*100;
+      this.baseVy = 1.0+Math.random()*0.8+level*0.12;
+      this.vx = (Math.random()-0.5)*0.9;
+      this.rot = Math.random()*Math.PI*2;
+      this.rotv = (Math.random()-0.5)*0.04;
+      this.spikes = isTumor ? 6+Math.floor(Math.random()*5) : 0;
+      this.wobble = Math.random()*Math.PI*2;
+      this.glowPhase = Math.random()*Math.PI*2;
+      this.nucleusColor = isTumor ? '#8b0000' : '#004d40';
+      this.surfaceColor = isTumor ? '#c0392b' : '#00897b';
+      this.glowColor = isTumor ? '#ff4444' : '#00e676';
+      this.antigenDots = isTumor ? Math.floor(3+Math.random()*4) : 0;
+      this.antigenAngles = [];
+      for (var i=0;i<this.antigenDots;i++) this.antigenAngles.push((i/this.antigenDots)*Math.PI*2+Math.random()*0.5);
+    }
+    update() {
+      var sm = activePowerups.slowmo ? 0.5 : 1;
+      this.y += this.baseVy*sm; this.x += this.vx;
+      this.rot += this.rotv; this.wobble += 0.05; this.glowPhase += 0.06;
+      if (this.x < this.r || this.x > W-this.r) this.vx *= -1;
+    }
+    draw() {
+      var glow = 0.5+0.5*Math.sin(this.glowPhase);
+      ctx.save(); ctx.translate(this.x,this.y); ctx.rotate(this.rot);
+      if (this.isTumor) {
+        ctx.shadowBlur=14+glow*10; ctx.shadowColor=this.glowColor;
+        ctx.beginPath(); var sr=this.r, sp=this.spikes;
+        for (var i=0;i<sp*2;i++) { var ang=(i/sp/2)*Math.PI*2, rad=i%2===0?sr:sr*0.55, wx=i%2!==0?Math.sin(this.wobble)*2:0; ctx.lineTo(Math.cos(ang)*rad+wx,Math.sin(ang)*rad); }
+        ctx.closePath();
+        var tg=ctx.createRadialGradient(0,0,sr*0.1,0,0,sr); tg.addColorStop(0,'#ff6b6b'); tg.addColorStop(0.5,this.surfaceColor); tg.addColorStop(1,'#5a0000');
+        ctx.fillStyle=tg; ctx.fill(); ctx.strokeStyle='rgba(255,34,34,0.7)'; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.shadowBlur=8; ctx.shadowColor='rgba(255,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(0,0,sr*0.38,sr*0.32,this.wobble*0.3,0,Math.PI*2); ctx.fillStyle=this.nucleusColor; ctx.fill();
+        ctx.shadowBlur=0;
+        for (var j=0;j<this.antigenAngles.length;j++) { var a=this.antigenAngles[j]; ctx.beginPath(); ctx.arc(Math.cos(a)*sr*0.88,Math.sin(a)*sr*0.88,3.5,0,Math.PI*2); ctx.fillStyle='#ffd740'; ctx.fill(); }
+      } else {
+        ctx.shadowBlur=10+glow*8; ctx.shadowColor=this.glowColor;
+        var hg=ctx.createRadialGradient(-this.r*0.25,-this.r*0.25,this.r*0.05,0,0,this.r); hg.addColorStop(0,'#b2dfdb'); hg.addColorStop(0.4,this.surfaceColor); hg.addColorStop(1,'#00332b');
+        ctx.beginPath(); var wr=this.r+Math.sin(this.wobble)*1.5; ctx.ellipse(0,0,wr,wr*0.95,0,0,Math.PI*2); ctx.fillStyle=hg; ctx.fill(); ctx.strokeStyle='rgba(0,230,118,0.3)'; ctx.lineWidth=1; ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(0,0,this.r*0.38,this.r*0.32,this.wobble*0.2,0,Math.PI*2); ctx.fillStyle=this.nucleusColor; ctx.fill();
+        ctx.shadowBlur=0;
+        for (var k=0;k<5;k++) { var a2=(k/5)*Math.PI*2+this.wobble*0.1; ctx.beginPath(); ctx.arc(Math.cos(a2)*this.r*0.72,Math.sin(a2)*this.r*0.72,2,0,Math.PI*2); ctx.fillStyle='#80cbc4'; ctx.fill(); }
       }
-      ctx.closePath();
-      const tg = ctx.createRadialGradient(0,0,sr*0.1,0,0,sr);
-      tg.addColorStop(0, '#ff6b6b');
-      tg.addColorStop(0.5, this.surfaceColor);
-      tg.addColorStop(1, '#6b0000');
-      ctx.fillStyle = tg;
-      ctx.fill();
-      ctx.strokeStyle = '#ff2222';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+      ctx.restore();
+    }
+    hit(mx,my) { var dx=mx-this.x,dy=my-this.y; return Math.sqrt(dx*dx+dy*dy)<this.r+8; }
+  }
 
-      // nucleus
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = '#ff000088';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, sr*0.38, sr*0.32, this.wobble*0.3, 0, Math.PI*2);
-      ctx.fillStyle = this.nucleusColor;
-      ctx.fill();
+  class Particle {
+    constructor(x,y,isTumor) { this.x=x;this.y=y;this.vx=(Math.random()-0.5)*8;this.vy=(Math.random()-0.5)*8-2;this.r=2+Math.random()*5;this.life=1;this.decay=0.03+Math.random()*0.025;this.color=isTumor?'hsl('+(Math.random()*30+340)+',100%,'+(50+Math.random()*30)+'%)':'hsl('+(140+Math.random()*30)+',100%,'+(60+Math.random()*20)+'%)'; }
+    update() { this.x+=this.vx;this.y+=this.vy;this.vy+=0.12;this.life-=this.decay;this.vx*=0.98; }
+    draw() { if(this.life<=0)return;ctx.save();ctx.globalAlpha=this.life;ctx.shadowBlur=6;ctx.shadowColor=this.color;ctx.beginPath();ctx.arc(this.x,this.y,this.r*this.life,0,Math.PI*2);ctx.fillStyle=this.color;ctx.fill();ctx.restore(); }
+  }
 
-      // antigen markers (spiky proteins)
-      ctx.shadowBlur = 0;
-      this.antigenAngles.forEach(ang => {
-        const ax = Math.cos(ang)*sr*0.85;
-        const ay = Math.sin(ang)*sr*0.85;
-        ctx.beginPath();
-        ctx.arc(ax, ay, 3.5, 0, Math.PI*2);
-        ctx.fillStyle = '#ffd740';
-        ctx.fill();
+  class PowerUpOrb {
+    constructor() { var types=Object.keys(POWERUP_TYPES);this.type=types[Math.floor(Math.random()*types.length)];this.info=POWERUP_TYPES[this.type];this.r=16;this.x=this.r+Math.random()*(W-this.r*2);this.y=-this.r-Math.random()*40;this.vy=0.8+Math.random()*0.4;this.phase=Math.random()*Math.PI*2; }
+    update() { this.y+=this.vy*(activePowerups.slowmo?0.5:1);this.phase+=0.08;this.x+=Math.sin(this.phase)*0.5; }
+    draw() { var pulse=1+0.15*Math.sin(this.phase);ctx.save();ctx.translate(this.x,this.y);ctx.scale(pulse,pulse);ctx.shadowBlur=20;ctx.shadowColor=this.info.color;ctx.beginPath();ctx.arc(0,0,this.r,0,Math.PI*2);var g=ctx.createRadialGradient(0,0,2,0,0,this.r);g.addColorStop(0,'#fff');g.addColorStop(0.4,this.info.color);g.addColorStop(1,'rgba(0,0,0,0.3)');ctx.fillStyle=g;ctx.fill();ctx.font='14px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.shadowBlur=0;ctx.fillText(this.info.emoji,0,1);ctx.restore(); }
+    hit(mx,my) { var dx=mx-this.x,dy=my-this.y;return Math.sqrt(dx*dx+dy*dy)<this.r+10; }
+  }
+
+  // ─── Helpers ───
+  function spawnCombo(x,y,text,isPenalty) { var el=document.createElement('div');el.className='combo-flash'+(isPenalty?' penalty':'');el.textContent=text;el.style.left=x+'px';el.style.top=y+'px';gameRoot.appendChild(el);setTimeout(function(){el.remove();},950); }
+  function shakeScreen() { gameRoot.classList.remove('shake');void gameRoot.offsetWidth;gameRoot.classList.add('shake');setTimeout(function(){gameRoot.classList.remove('shake');},400); }
+  function updatePowerupBar() { powerupBar.innerHTML='';for(var t in activePowerups){if(activePowerups[t]<=0)continue;var info=POWERUP_TYPES[t];var el=document.createElement('div');el.className='powerup-indicator';el.textContent=info.emoji+' '+info.label;powerupBar.appendChild(el);} }
+
+  // ═══════════════════════════════════════════
+  // ─── HAND TRACKING (MediaPipe) ───
+  // ═══════════════════════════════════════════
+
+  function initHandTracking(onReady) {
+    camStatus.textContent = 'Loading hand tracking model...';
+
+    if (typeof Hands === 'undefined') {
+      camStatus.textContent = '⚠ MediaPipe failed to load. Try refreshing.';
+      return;
+    }
+
+    mpHands = new Hands({
+      locateFile: function(file) {
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/' + file;
+      }
+    });
+
+    mpHands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 0, // fastest
+      minDetectionConfidence: 0.6,
+      minTrackingConfidence: 0.5
+    });
+
+    mpHands.onResults(function(results) {
+      // Draw camera PiP
+      camCtx.save();
+      camCtx.clearRect(0, 0, CAM_W, CAM_H);
+      // Mirror the camera feed
+      camCtx.translate(CAM_W, 0);
+      camCtx.scale(-1, 1);
+      camCtx.drawImage(results.image, 0, 0, CAM_W, CAM_H);
+      camCtx.restore();
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        var lm = results.multiHandLandmarks[0];
+        // Index finger tip = landmark 8
+        var tip = lm[8];
+        // MediaPipe gives normalized coords (0-1), mirrored
+        // Mirror X so it feels natural (move right = cursor goes right)
+        var nx = 1 - tip.x;
+        var ny = tip.y;
+
+        prevHandX = handX;
+        prevHandY = handY;
+        handX = nx * W;
+        handY = ny * H;
+
+        var dx = handX - prevHandX;
+        var dy = handY - prevHandY;
+        handVelocity = Math.sqrt(dx * dx + dy * dy);
+
+        handActive = true;
+
+        // Add to trail
+        handTrail.push({ x: handX, y: handY, age: 0 });
+        if (handTrail.length > 20) handTrail.shift();
+
+        // Draw finger dot on PiP
+        camCtx.save();
+        var pipX = (1 - tip.x) * CAM_W; // mirrored
+        var pipY = tip.y * CAM_H;
+        camCtx.beginPath();
+        camCtx.arc(pipX, pipY, 6, 0, Math.PI * 2);
+        camCtx.fillStyle = '#00e5ff';
+        camCtx.shadowBlur = 12;
+        camCtx.shadowColor = '#00e5ff';
+        camCtx.fill();
+        camCtx.restore();
+
+        // If velocity is high enough and game is running, check for slicing
+        if (gameRunning && handVelocity > SLICE_VELOCITY_THRESHOLD) {
+          processHandSlice(handX, handY);
+        }
+
+        // Also reset cooldowns if hand slows down
+        if (handVelocity < SLICE_VELOCITY_THRESHOLD * 0.5) {
+          handCooldowns.clear();
+        }
+      } else {
+        handActive = false;
+        handCooldowns.clear();
+      }
+    });
+
+    // Start camera
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } })
+      .then(function(stream) {
+        webcamEl.srcObject = stream;
+        webcamEl.onloadedmetadata = function() {
+          webcamEl.play();
+          camStatus.textContent = '✓ Camera ready';
+
+          // Use MediaPipe Camera utility for frame loop
+          mpCamera = new Camera(webcamEl, {
+            onFrame: async function() {
+              if (mpHands) await mpHands.send({ image: webcamEl });
+            },
+            width: 640,
+            height: 480
+          });
+          mpCamera.start();
+
+          if (onReady) onReady();
+        };
+      })
+      .catch(function(err) {
+        camStatus.textContent = '⚠ Camera access denied: ' + err.message;
+        console.error('Camera error:', err);
       });
+  }
 
-    } else {
-      // smooth healthy cell
-      ctx.shadowBlur = 10 + glow*6;
-      ctx.shadowColor = this.glowColor;
-      const hg = ctx.createRadialGradient(-this.r*0.25,-this.r*0.25,this.r*0.05, 0,0,this.r);
-      hg.addColorStop(0, '#b2dfdb');
-      hg.addColorStop(0.4, this.surfaceColor);
-      hg.addColorStop(1, '#00332b');
-      ctx.beginPath();
-      const wr = this.r + Math.sin(this.wobble)*1.5;
-      ctx.ellipse(0, 0, wr, wr*0.95, 0, 0, Math.PI*2);
-      ctx.fillStyle = hg;
-      ctx.fill();
-      ctx.strokeStyle = '#00e67688';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      // nucleus
-      ctx.beginPath();
-      ctx.ellipse(0, 0, this.r*0.38, this.r*0.32, this.wobble*0.2, 0, Math.PI*2);
-      ctx.fillStyle = this.nucleusColor;
-      ctx.fill();
-
-      // membrane dots
-      ctx.shadowBlur = 0;
-      for (let i=0; i<5; i++) {
-        const a2 = (i/5)*Math.PI*2 + this.wobble*0.1;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a2)*this.r*0.72, Math.sin(a2)*this.r*0.72, 2, 0, Math.PI*2);
-        ctx.fillStyle = '#80cbc4';
-        ctx.fill();
+  function processHandSlice(mx, my) {
+    // Check powerups
+    for (var pi = powerups.length - 1; pi >= 0; pi--) {
+      if (powerups[pi].hit(mx, my)) {
+        var puType = powerups[pi].type;
+        activePowerups[puType] = POWERUP_TYPES[puType].duration;
+        playSound('powerup');
+        updatePowerupBar();
+        for (var pp = 0; pp < 12; pp++) particles.push(new Particle(powerups[pi].x, powerups[pi].y, false));
+        powerups.splice(pi, 1);
+        return;
       }
     }
 
-    ctx.restore();
-  }
+    // Check cells
+    for (var i = cells.length - 1; i >= 0; i--) {
+      var c = cells[i];
+      if (handCooldowns.has(c.id)) continue; // already sliced this swipe
+      if (!c.hit(mx, my)) continue;
 
-  hit(mx, my) {
-    const dx = mx - this.x, dy = my - this.y;
-    return Math.sqrt(dx*dx+dy*dy) < this.r + 6;
-  }
-}
+      handCooldowns.add(c.id);
+      totalClicks++;
 
-class Particle {
-  constructor(x,y,isTumor) {
-    this.x = x; this.y = y;
-    this.vx = (Math.random()-0.5)*6;
-    this.vy = (Math.random()-0.5)*6 - 2;
-    this.r = 2+Math.random()*5;
-    this.life = 1;
-    this.decay = 0.04 + Math.random()*0.03;
-    this.color = isTumor
-      ? `hsl(${Math.random()*30+340},100%,${50+Math.random()*30}%)`
-      : `hsl(${140+Math.random()*30},100%,${60+Math.random()*20}%)`;
-  }
-  update() {
-    this.x += this.vx; this.y += this.vy;
-    this.vy += 0.15; this.life -= this.decay;
-  }
-  draw() {
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, this.life);
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-    ctx.restore();
-  }
-}
+      // Convert to screen coords for combo text
+      var sx = mx * (canvas.getBoundingClientRect().width / W);
+      var sy = my * (canvas.getBoundingClientRect().height / H);
 
-function spawnCombo(x, y, text) {
-  const el = document.createElement('div');
-  el.className = 'combo-flash';
-  el.textContent = text;
-  el.style.left = x + 'px';
-  el.style.top = y + 'px';
-  el.style.position = 'absolute';
-  document.getElementById('canvas-area').appendChild(el);
-  setTimeout(() => el.remove(), 900);
-}
-
-function startGame() {
-  score = 0; lives = 3; level = 1; cells = []; particles = [];
-  combo = 0; spawnTimer = 0; levelTimer = 0;
-  gameRunning = true;
-  overlay.style.display = 'none';
-  update();
-  infoMsg.textContent = FACTS[0];
-  setInterval(() => {
-    if (gameRunning) infoMsg.textContent = FACTS[Math.floor(Math.random()*FACTS.length)];
-  }, 5000);
-}
-
-function showEnd() {
-  gameRunning = false;
-  cancelAnimationFrame(frameId);
-  overlay.innerHTML = `
-    <h1>MISSION ${lives > 0 ? 'COMPLETE' : 'FAILED'}</h1>
-    <div class="final-score">${score}</div>
-    <div class="result-msg">${lives > 0 ? '🎉 You successfully defended the body!' : '💀 Too many healthy cells lost...'}</div>
-    <div class="subtitle">CAR-T therapy precision is key — saving healthy cells is as important as destroying tumors!</div>
-    <button id="start-btn" onclick="startGame()" style="background:linear-gradient(135deg,#e040fb,#aa00ff);color:#fff;border:none;border-radius:30px;padding:12px 36px;font-family:'Orbitron',monospace;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;box-shadow:0 0 20px #e040fb55;margin-top:16px;">▶ PLAY AGAIN</button>
-  `;
-  overlay.style.display = 'flex';
-}
-
-function update() {
-  if (!gameRunning) return;
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Draw faint grid
-  ctx.strokeStyle = 'rgba(100,100,200,0.04)';
-  ctx.lineWidth = 1;
-  for (let x=0; x<W; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y=0; y<H; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-
-  spawnTimer++;
-  levelTimer++;
-  const spawnRate = Math.max(30, 70 - level*5);
-
-  if (spawnTimer >= spawnRate) {
-    spawnTimer = 0;
-    const isTumor = Math.random() < (0.45 + level*0.03);
-    cells.push(new Cell(isTumor));
-  }
-
-  if (levelTimer > 500) {
-    levelTimer = 0;
-    level = Math.min(level+1, 8);
-    levelVal.textContent = level;
-  }
-
-  // Update cells
-  for (let i = cells.length-1; i>=0; i--) {
-    const c = cells[i];
-    c.update();
-    if (c.y - c.r > H) {
       if (c.isTumor) {
-        lives = Math.max(0, lives-1);
-        livesVal.textContent = heartStr(lives);
-        infoMsg.textContent = '⚠ A tumor cell escaped! Tumor cells evade detection by hiding antigens — a real challenge in CAR-T therapy.';
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        tumorsKilled++;
+        var mult = activePowerups.bonus ? 2 : 1;
+        var pts = 10 * combo * mult;
+        score += pts;
+        playSound('kill');
+        if (combo > 1) playSound('combo');
+        for (var p = 0; p < 20; p++) particles.push(new Particle(c.x, c.y, true));
+        if (combo > 1) spawnCombo(sx, sy - 20, 'x' + combo + ' COMBO! +' + pts, false);
+        else spawnCombo(sx, sy - 20, '+' + pts, false);
+        cells.splice(i, 1);
+      } else {
+        combo = 0;
+        if (!activePowerups.shield) {
+          lives = Math.max(0, lives - 1);
+          livesVal.textContent = heartStr(lives);
+          shakeScreen();
+          playSound('miss');
+        }
+        for (var p2 = 0; p2 < 14; p2++) particles.push(new Particle(c.x, c.y, false));
+        spawnCombo(sx, sy - 20, activePowerups.shield ? 'SHIELDED!' : 'HEALTHY! -1 ❤', true);
+        healthyKilled++;
+        infoMsg.textContent = '❌ That was a healthy cell! Specificity is everything in CAR-T therapy.';
+        cells.splice(i, 1);
         if (lives <= 0) { showEnd(); return; }
       }
-      cells.splice(i,1);
+      break;
     }
   }
 
-  cells.forEach(c => c.draw());
+  function drawHandTrail() {
+    if (!handMode || handTrail.length < 2) return;
 
-  // Particles
-  for (let i = particles.length-1; i>=0; i--) {
-    particles[i].update();
-    particles[i].draw();
-    if (particles[i].life <= 0) particles.splice(i,1);
+    // Age trail points
+    for (var i = 0; i < handTrail.length; i++) handTrail[i].age++;
+
+    // Remove old points
+    while (handTrail.length > 0 && handTrail[0].age > 15) handTrail.shift();
+
+    if (handTrail.length < 2) return;
+
+    // Draw blade trail
+    ctx.save();
+    for (var j = 1; j < handTrail.length; j++) {
+      var p0 = handTrail[j - 1], p1 = handTrail[j];
+      var alpha = 1 - (p1.age / 15);
+      var width = Math.max(1, (1 - p1.age / 15) * 6);
+
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.strokeStyle = 'rgba(0,229,255,' + (alpha * 0.8) + ')';
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(0,229,255,' + (alpha * 0.5) + ')';
+      ctx.stroke();
+    }
+
+    // Draw fingertip cursor
+    if (handActive) {
+      ctx.beginPath();
+      ctx.arc(handX, handY, 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,229,255,0.3)';
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = '#00e5ff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(handX, handY, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#00e5ff';
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
-  scoreVal.textContent = score;
-  frameId = requestAnimationFrame(update);
-}
+  // ═══════════════════════════════════════════
+  // ─── GAME LOGIC ───
+  // ═══════════════════════════════════════════
 
-canvas.addEventListener('click', e => {
-  if (!gameRunning) return;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = W / rect.width;
-  const scaleY = H / rect.height;
-  const mx = (e.clientX - rect.left) * scaleX;
-  const my = (e.clientY - rect.top) * scaleY;
+  function startGame() {
+    initAudio();
+    score=0; lives=5; level=1; cells=[]; particles=[]; powerups=[];
+    activePowerups={}; combo=0; maxCombo=0; tumorsKilled=0; totalClicks=0;
+    healthyKilled=0; tumorsEscaped=0; healthyPassed=0;
+    spawnTimer=0; levelTimer=0; cellIdCounter=0;
+    handCooldowns.clear(); handTrail=[];
+    gameRunning = true;
 
-  for (let i = cells.length-1; i>=0; i--) {
-    const c = cells[i];
-    if (!c.alive || !c.hit(mx, my)) continue;
+    overlay.style.display='none';
+    hudEl.style.display='flex';
+    infoBar.style.display='flex';
+    levelProgress.style.display='block';
+    scoreVal.textContent='0'; livesVal.textContent=heartStr(5); levelVal.textContent='1';
+    levelProgressFill.style.width='0%';
+    powerupBar.innerHTML='';
+    infoMsg.textContent=FACTS[0];
 
-    if (c.isTumor) {
-      combo++;
-      const pts = 10 * combo;
-      score += pts;
-      for (let p=0; p<18; p++) particles.push(new Particle(c.x, c.y, true));
-      if (combo > 1) spawnCombo(e.clientX - document.getElementById('canvas-area').getBoundingClientRect().left, e.clientY - document.getElementById('canvas-area').getBoundingClientRect().top, `x${combo} COMBO! +${pts}`);
-      cells.splice(i,1);
+    if (handMode) {
+      camCanvas.style.display='block';
+      handIndicator.style.display='block';
+      canvas.style.cursor='none';
     } else {
-      combo = 0;
-      lives = Math.max(0, lives-1);
-      livesVal.textContent = heartStr(lives);
-      for (let p=0; p<12; p++) particles.push(new Particle(c.x, c.y, false));
-      spawnCombo(e.clientX - document.getElementById('canvas-area').getBoundingClientRect().left, e.clientY - document.getElementById('canvas-area').getBoundingClientRect().top, 'HEALTHY CELL! -1 ❤');
-      infoMsg.textContent = '❌ That was a healthy cell! CAR-T therapy is designed to spare normal cells — specificity is everything.';
-      cells.splice(i,1);
-      if (lives <= 0) { showEnd(); return; }
+      camCanvas.style.display='none';
+      handIndicator.style.display='none';
+      canvas.style.cursor='crosshair';
     }
-    break;
-  }
-});
 
-window.addEventListener('resize', () => { resize(); });
-resize();
+    if (factInterval) clearInterval(factInterval);
+    factInterval = setInterval(function(){ if(gameRunning) infoMsg.textContent=FACTS[Math.floor(Math.random()*FACTS.length)]; }, 6000);
+
+    if (frameId) cancelAnimationFrame(frameId);
+    frameId = requestAnimationFrame(gameLoop);
+  }
+
+  function showEnd() {
+    gameRunning = false;
+    if (frameId) { cancelAnimationFrame(frameId); frameId=null; }
+    if (factInterval) { clearInterval(factInterval); factInterval=null; }
+
+    var isNewHigh = score > highScore;
+    if (isNewHigh) { highScore=score; localStorage.setItem('cart_highscore',String(highScore)); }
+    var won = lives > 0;
+
+    // ─── Sensitivity & Specificity calculations ───
+    // Think of it like a medical test:
+    //   "Positive test" = you destroyed a cell (clicked/sliced it)
+    //   "Negative test" = you let a cell pass through
+    //   "Condition present" = cell IS a tumor
+    //   "Condition absent" = cell is healthy
+    //
+    // True Positive (TP)  = tumor destroyed (correct!)
+    // False Negative (FN) = tumor escaped (missed it!)
+    // False Positive (FP) = healthy cell destroyed (oops!)
+    // True Negative (TN)  = healthy cell passed safely (correct!)
+
+    var TP = tumorsKilled;
+    var FN = tumorsEscaped;
+    var FP = healthyKilled;
+    var TN = healthyPassed;
+
+    var sensitivity = (TP + FN) > 0 ? Math.round((TP / (TP + FN)) * 100) : 0;
+    var specificity = (TN + FP) > 0 ? Math.round((TN / (TN + FP)) * 100) : 0;
+
+    var sensColor = sensitivity >= 80 ? '#69f0ae' : sensitivity >= 50 ? '#ffd740' : '#ff5252';
+    var specColor = specificity >= 80 ? '#69f0ae' : specificity >= 50 ? '#ffd740' : '#ff5252';
+
+    var sensEmoji = sensitivity >= 90 ? '🌟' : sensitivity >= 70 ? '👍' : sensitivity >= 50 ? '😐' : '😬';
+    var specEmoji = specificity >= 90 ? '🌟' : specificity >= 70 ? '👍' : specificity >= 50 ? '😐' : '😬';
+
+    // Grade
+    var grade, gradeColor;
+    var avg = (sensitivity + specificity) / 2;
+    if (avg >= 90) { grade = 'A+'; gradeColor = '#69f0ae'; }
+    else if (avg >= 80) { grade = 'A'; gradeColor = '#69f0ae'; }
+    else if (avg >= 70) { grade = 'B'; gradeColor = '#ffd740'; }
+    else if (avg >= 60) { grade = 'C'; gradeColor = '#ffa726'; }
+    else if (avg >= 50) { grade = 'D'; gradeColor = '#ff7043'; }
+    else { grade = 'F'; gradeColor = '#ff5252'; }
+
+    overlay.innerHTML =
+      '<div style="max-width:520px;width:100%;overflow-y:auto;max-height:95vh;padding:20px;display:flex;flex-direction:column;align-items:center;">'+
+
+      '<h1 style="font-family:Orbitron,monospace;font-size:clamp(20px,4vw,32px);font-weight:900;color:#e040fb;letter-spacing:4px;margin-bottom:6px;text-align:center;text-shadow:0 0 40px rgba(224,64,251,0.4);">MISSION '+(won?'COMPLETE':'FAILED')+'</h1>'+
+      '<div style="font-family:Orbitron,monospace;font-size:clamp(28px,7vw,44px);font-weight:900;color:#ffd740;margin:4px 0;text-shadow:0 0 30px rgba(255,215,64,0.4);">'+score+'</div>'+
+      (isNewHigh?'<div class="new-high-score" style="margin-bottom:8px;">★ NEW HIGH SCORE ★</div>':'<div style="font-size:12px;color:rgba(255,255,255,0.3);margin-bottom:8px;">BEST: '+highScore+'</div>')+
+
+      // ─── Lab Report Card ───
+      '<div style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;margin:12px 0;">'+
+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">'+
+          '<div style="font-family:Orbitron,monospace;font-size:13px;color:#00bcd4;letter-spacing:2px;">🔬 LAB REPORT CARD</div>'+
+          '<div style="font-family:Orbitron,monospace;font-size:28px;font-weight:900;color:'+gradeColor+';">'+grade+'</div>'+
+        '</div>'+
+
+        // Confusion matrix visual
+        '<div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:2px;margin-bottom:16px;font-size:11px;text-align:center;">'+
+          '<div></div>'+
+          '<div style="color:#ff6b6b;padding:4px;font-weight:700;">TUMOR</div>'+
+          '<div style="color:#69f0ae;padding:4px;font-weight:700;">HEALTHY</div>'+
+
+          '<div style="color:rgba(255,255,255,0.5);padding:6px 8px;text-align:right;font-weight:600;">You destroyed</div>'+
+          '<div style="background:rgba(105,240,174,0.1);border:1px solid rgba(105,240,174,0.2);border-radius:8px;padding:8px;"><span style="font-size:18px;font-weight:700;color:#69f0ae;">'+TP+'</span><br><span style="color:rgba(255,255,255,0.4);font-size:9px;">TRUE POS ✓</span></div>'+
+          '<div style="background:rgba(255,82,82,0.1);border:1px solid rgba(255,82,82,0.2);border-radius:8px;padding:8px;"><span style="font-size:18px;font-weight:700;color:#ff5252;">'+FP+'</span><br><span style="color:rgba(255,255,255,0.4);font-size:9px;">FALSE POS ✗</span></div>'+
+
+          '<div style="color:rgba(255,255,255,0.5);padding:6px 8px;text-align:right;font-weight:600;">You let pass</div>'+
+          '<div style="background:rgba(255,82,82,0.1);border:1px solid rgba(255,82,82,0.2);border-radius:8px;padding:8px;"><span style="font-size:18px;font-weight:700;color:#ff5252;">'+FN+'</span><br><span style="color:rgba(255,255,255,0.4);font-size:9px;">FALSE NEG ✗</span></div>'+
+          '<div style="background:rgba(105,240,174,0.1);border:1px solid rgba(105,240,174,0.2);border-radius:8px;padding:8px;"><span style="font-size:18px;font-weight:700;color:#69f0ae;">'+TN+'</span><br><span style="color:rgba(255,255,255,0.4);font-size:9px;">TRUE NEG ✓</span></div>'+
+        '</div>'+
+
+        // Sensitivity & Specificity bars
+        '<div style="margin-bottom:12px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+            '<span style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;">'+sensEmoji+' Sensitivity</span>'+
+            '<span style="font-family:Orbitron,monospace;font-size:16px;font-weight:900;color:'+sensColor+';">'+sensitivity+'%</span>'+
+          '</div>'+
+          '<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">'+
+            '<div style="height:100%;width:'+sensitivity+'%;background:'+sensColor+';border-radius:4px;transition:width 1s ease;"></div>'+
+          '</div>'+
+          '<div style="color:rgba(255,255,255,0.3);font-size:10px;margin-top:3px;line-height:1.4;">How good were you at catching tumors?<br>= Tumors destroyed ÷ All tumors ('+TP+' out of '+(TP+FN)+')</div>'+
+        '</div>'+
+
+        '<div style="margin-bottom:12px;">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'+
+            '<span style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:600;">'+specEmoji+' Specificity</span>'+
+            '<span style="font-family:Orbitron,monospace;font-size:16px;font-weight:900;color:'+specColor+';">'+specificity+'%</span>'+
+          '</div>'+
+          '<div style="height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">'+
+            '<div style="height:100%;width:'+specificity+'%;background:'+specColor+';border-radius:4px;transition:width 1s ease;"></div>'+
+          '</div>'+
+          '<div style="color:rgba(255,255,255,0.3);font-size:10px;margin-top:3px;line-height:1.4;">How good were you at sparing healthy cells?<br>= Healthy passed safely ÷ All healthy cells ('+TN+' out of '+(TN+FP)+')</div>'+
+        '</div>'+
+
+        // Fun explanation
+        '<div style="background:rgba(224,64,251,0.06);border:1px solid rgba(224,64,251,0.15);border-radius:10px;padding:12px;margin-top:8px;">'+
+          '<div style="font-size:11px;color:#e040fb;font-weight:700;margin-bottom:6px;">🧪 WHAT DOES THIS MEAN?</div>'+
+          '<div style="font-size:11px;color:rgba(255,255,255,0.55);line-height:1.6;">'+
+            'In real medicine, doctors use these same two numbers to measure how good a treatment is:<br><br>'+
+            '<span style="color:#69f0ae;">Sensitivity</span> = Can the treatment find ALL the cancer? A perfect CAR-T cell would catch every single tumor (100%).<br><br>'+
+            '<span style="color:#64b5f6;">Specificity</span> = Does the treatment leave healthy cells alone? A perfect CAR-T cell would never harm a healthy cell (100%).<br><br>'+
+            'The best treatments score high on BOTH. That\'s why scientists work so hard to make CAR-T cells precise — they need to be smart enough to tell friend from foe! 🧬'+
+          '</div>'+
+        '</div>'+
+
+      '</div>'+ // end lab report card
+
+      '<div class="end-stats" style="margin:12px 0 16px;">'+
+        '<div class="end-stat"><div class="es-val" style="color:#ffd740">'+maxCombo+'x</div><div class="es-label">MAX COMBO</div></div>'+
+        '<div class="end-stat"><div class="es-val" style="color:#69f0ae">'+level+'</div><div class="es-label">LEVEL</div></div>'+
+      '</div>'+
+
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">'+
+        '<button class="btn-primary" id="play-again-btn">▶ PLAY AGAIN</button>'+
+        '<button class="btn-primary" id="back-menu-btn" style="background:linear-gradient(135deg,#455a64,#37474f);">MENU</button>'+
+      '</div>'+
+
+      '</div>'; // end scrollable container
+
+    overlay.style.display='flex';
+    hudEl.style.display='none';
+    levelProgress.style.display='none';
+    infoBar.style.display='none';
+    powerupBar.innerHTML='';
+    camCanvas.style.display='none';
+    handIndicator.style.display='none';
+
+    document.getElementById('play-again-btn').addEventListener('click',function(e){e.stopPropagation();startGame();});
+    document.getElementById('back-menu-btn').addEventListener('click',function(e){e.stopPropagation();location.reload();});
+  }
+
+  function gameLoop() {
+    if (!gameRunning) return;
+    try {
+      ctx.clearRect(0,0,W,H);
+
+      // Grid
+      ctx.strokeStyle='rgba(100,100,200,0.03)'; ctx.lineWidth=1;
+      for(var gx=0;gx<W;gx+=50){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+      for(var gy=0;gy<H;gy+=50){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+
+      // Powerup timers
+      for(var pt in activePowerups){activePowerups[pt]--;if(activePowerups[pt]<=0){delete activePowerups[pt];updatePowerupBar();}}
+
+      spawnTimer++; levelTimer++;
+      var spawnRate=Math.max(25,65-level*5), levelDuration=600;
+      levelProgressFill.style.width=Math.min(100,(levelTimer/levelDuration)*100)+'%';
+
+      if(spawnTimer>=spawnRate){spawnTimer=0;cells.push(new Cell(Math.random()<(0.45+level*0.025)));}
+      if(Math.random()<0.002+level*0.0005) powerups.push(new PowerUpOrb());
+
+      if(levelTimer>levelDuration){
+        levelTimer=0;
+        if(level<10){level++;levelVal.textContent=level;playSound('levelup');spawnCombo(W/2-60,H/2,'LEVEL '+level+'!',false);}
+      }
+
+      // Cells
+      for(var i=cells.length-1;i>=0;i--){
+        cells[i].update();
+        if(cells[i].y-cells[i].r>H){
+          if(cells[i].isTumor){
+            tumorsEscaped++;
+            if(!activePowerups.shield){lives=Math.max(0,lives-1);livesVal.textContent=heartStr(lives);shakeScreen();playSound('miss');infoMsg.textContent='⚠ A tumor cell escaped!';if(lives<=0){showEnd();return;}}
+            else{infoMsg.textContent='🛡️ Shield absorbed the escaped tumor!';}
+          } else {
+            healthyPassed++;
+          }
+          cells.splice(i,1);
+        }
+      }
+      for(var ci=0;ci<cells.length;ci++) cells[ci].draw();
+
+      // Powerups
+      for(var pi=powerups.length-1;pi>=0;pi--){powerups[pi].update();powerups[pi].draw();if(powerups[pi].y-20>H)powerups.splice(pi,1);}
+
+      // Particles
+      for(var ri=particles.length-1;ri>=0;ri--){particles[ri].update();particles[ri].draw();if(particles[ri].life<=0)particles.splice(ri,1);}
+
+      // Hand trail (drawn on top)
+      drawHandTrail();
+
+      scoreVal.textContent=score;
+    } catch(e) { console.error('Game error:',e); }
+    frameId = requestAnimationFrame(gameLoop);
+  }
+
+  // ─── Click Input (non-hand mode) ───
+  function handleClick(clientX,clientY) {
+    if (!gameRunning || handMode) return;
+    var rect=canvas.getBoundingClientRect();
+    var mx=(clientX-rect.left)*(W/rect.width), my=(clientY-rect.top)*(H/rect.height);
+
+    for(var pi=powerups.length-1;pi>=0;pi--){
+      if(powerups[pi].hit(mx,my)){
+        var puType=powerups[pi].type;activePowerups[puType]=POWERUP_TYPES[puType].duration;
+        playSound('powerup');updatePowerupBar();
+        for(var pp=0;pp<12;pp++)particles.push(new Particle(powerups[pi].x,powerups[pi].y,false));
+        powerups.splice(pi,1);return;
+      }
+    }
+
+    totalClicks++;
+    var rx=clientX-rect.left, ry=clientY-rect.top;
+
+    for(var i=cells.length-1;i>=0;i--){
+      var c=cells[i];
+      if(!c.hit(mx,my))continue;
+      if(c.isTumor){
+        combo++;if(combo>maxCombo)maxCombo=combo;tumorsKilled++;
+        var mult=activePowerups.bonus?2:1, pts=10*combo*mult; score+=pts;
+        playSound('kill');if(combo>1)playSound('combo');
+        for(var p=0;p<20;p++)particles.push(new Particle(c.x,c.y,true));
+        if(combo>1)spawnCombo(rx,ry-20,'x'+combo+' COMBO! +'+pts,false);
+        else spawnCombo(rx,ry-20,'+'+pts,false);
+        cells.splice(i,1);
+      } else {
+        combo=0;
+        if(!activePowerups.shield){lives=Math.max(0,lives-1);livesVal.textContent=heartStr(lives);shakeScreen();playSound('miss');}
+        for(var p2=0;p2<14;p2++)particles.push(new Particle(c.x,c.y,false));
+        spawnCombo(rx,ry-20,activePowerups.shield?'SHIELDED!':'HEALTHY! -1 ❤',true);
+        healthyKilled++;
+        infoMsg.textContent='❌ That was a healthy cell! Specificity is everything in CAR-T therapy.';
+        cells.splice(i,1);
+        if(lives<=0){showEnd();return;}
+      }
+      break;
+    }
+  }
+
+  canvas.addEventListener('click',function(e){handleClick(e.clientX,e.clientY);});
+  canvas.addEventListener('touchstart',function(e){e.preventDefault();handleClick(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+
+  // ─── Start buttons ───
+  document.getElementById('start-btn').addEventListener('click',function(e){
+    e.stopPropagation();
+    handMode = false;
+    startGame();
+  });
+
+  document.getElementById('hand-btn').addEventListener('click',function(e){
+    e.stopPropagation();
+    handMode = true;
+    camCanvas.width = CAM_W;
+    camCanvas.height = CAM_H;
+
+    if (!mpHands) {
+      initHandTracking(function() {
+        startGame();
+      });
+    } else {
+      startGame();
+    }
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+
+})();
 </script>
+</body>
+</html>
